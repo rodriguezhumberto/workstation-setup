@@ -114,6 +114,11 @@
       changed_when: "'added' in devpod_provider_out.stdout"
       failed_when: false
 
+    - name: Configure DevPod to sync dotfiles
+      ansible.builtin.command:
+        cmd: "devpod context set-options default -o DOTFILES_URL={{ dotfiles_repo }}"
+      changed_when: false
+
     - name: Initialize and Apply Dotfiles via Chezmoi
       command:
         cmd: "chezmoi init --apply --update {{ dotfiles_repo }}"
