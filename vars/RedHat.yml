@@ -1,0 +1,22 @@
+pkg_manager_become: yes
+copr_repos:
+  - scottames/ghostty
+docker_repo_url: "https://download.docker.com/linux/fedora/docker-ce.repo"
+packages:
+  - zsh
+  - ghostty
+  - git
+  - chezmoi
+  - pass
+  - gnupg2
+  - curl
+  - ripgrep
+  - fd-find
+  - neovim
+  - wireguard-tools
+  - tmux
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin

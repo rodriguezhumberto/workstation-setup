@@ -1,0 +1,120 @@
+---
+- name: "Hue's Workstation Setup"
+  hosts: localhost
+  connection: local
+
+  vars_files:
+    - "vars/default.yml"
+
+  pre_tasks:
+    - name: Load OS-specific variables
+      include_vars: "{{ item }}"
+      with_first_found:
+        - "vars/{{ ansible_os_family }}.yml"
+        - "vars/default.yml"
+
+  tasks:
+    - name: Enable COPR repositories (Fedora only)
+      ansible.builtin.shell: dnf copr enable -y scottames/ghostty
+      args:
+        creates: "/etc/yum.repos.d/_copr:copr.fedorainfracloud.org:scottames:ghostty.repo"
+      when: ansible_distribution == "Fedora"
+      become: yes
+      check_mode: no
+      changed_when: false
+
+    - name: Add Docker CE repository (Fedora only)
+      ansible.builtin.shell: dnf config-manager addrepo --from-repofile={{ docker_repo_url }}
+      args:
+        creates: "/etc/yum.repos.d/docker-ce.repo"
+      when: ansible_distribution == "Fedora"
+      become: yes
+      check_mode: no
+      changed_when: false
+
+    - name: Flush package manager cache (Fedora only)
+      ansible.builtin.command: dnf clean metadata
+      when: ansible_distribution == "Fedora"
+      become: yes
+      changed_when: false
+      check_mode: no
+
+    - name: Force metadata update (Fedora only)
+      ansible.builtin.command: dnf makecache
+      when: ansible_distribution == "Fedora"
+      become: yes
+      changed_when: false
+      check_mode: no
+
+    - name: Install native packages
+      package:
+        name: "{{ packages }}"
+        state: present
+        update_cache: yes
+      become: "{{ pkg_manager_become }}"
+
+    - name: Change user shell to zsh
+      ansible.builtin.user:
+        name: "{{ ansible_user_id }}"
+        shell: /usr/bin/zsh
+      become: yes
+      when: ansible_system == "Linux"
+
+    - name: Install Starship
+      ansible.builtin.shell: curl -sS https://starship.rs/install.sh | sh -s -- --yes
+      become: yes
+      check_mode: no
+
+    - name: Ensure Docker group exists & add user
+      block:
+        - name: Ensure Docker group exists
+          ansible.builtin.group:
+            name: docker
+            state: present
+          check_mode: no
+        - name: Add user to docker group
+          ansible.builtin.user:
+            name: "{{ ansible_user_id }}"
+            groups: docker
+            append: yes
+        - name: Enable and start Docker service
+          ansible.builtin.systemd:
+            name: docker
+            enabled: yes
+            state: started
+      become: yes
+      when: ansible_system == "Linux"
+
+    - name: Check if DevPod is installed
+      ansible.builtin.command: devpod version
+      register: devpod_check
+      ignore_errors: yes
+      changed_when: false
+      check_mode: no
+
+    - name: Install DevPod CLI
+      ansible.builtin.get_url:
+        url: "{{ devpod_url_map[ansible_system][ansible_architecture] }}"
+        dest: "/usr/local/bin/devpod"
+        mode: '0755'
+      become: yes
+      when: devpod_check is failed or devpod_check.rc != 0
+      vars:
+        devpod_url_map:
+          Linux:
+            x86_64: "https://github.com/loft-sh/devpod/releases/latest/download/devpod-linux-amd64"
+            aarch64: "https://github.com/loft-sh/devpod/releases/latest/download/devpod-linux-arm64"
+          Darwin:
+            x86_64: "https://github.com/loft-sh/devpod/releases/latest/download/devpod-darwin-amd64"
+            arm64: "https://github.com/loft-sh/devpod/releases/latest/download/devpod-darwin-arm64"
+
+    - name: Set DevPod provider to Docker
+      ansible.builtin.command: devpod provider add docker
+      register: devpod_provider_out
+      changed_when: "'added' in devpod_provider_out.stdout"
+      failed_when: false
+
+    - name: Initialize and Apply Dotfiles via Chezmoi
+      command:
+        cmd: "chezmoi init --apply --update {{ dotfiles_repo }}"
+        creates: "~/.local/share/chezmoi"

@@ -1,0 +1,23 @@
+---
+# --- Identity ---
+user_name: "hue"
+github_username: "rodriguezhumberto"
+
+# --- Repositories ---
+workstation_repo: "https://github.com/{{ github_username }}/workstation-setup.git"
+dotfiles_repo: "https://github.com/{{ github_username }}/dotfiles.git"
+password_store_repo: "https://github.com/{{ github_username }}/my-pass-store.git"
+
+# --- Paths ---
+ansible_dir: "~/.local/share/ansible/setup"
+chezmoi_dir: "~/.local/share/chezmoi"
+pass_dir: "~/.password-store"
+
+# --- DevPod Settings ---
+devpod_provider: "docker" 
+
+# --- Fallback Packages ---
+common_packages:
+  - curl
+  - git
+  - rsync
