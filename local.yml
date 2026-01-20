@@ -45,13 +45,22 @@
       become: yes
       changed_when: false
       check_mode: no
+    
+    - name: Install native packages (macOS)
+      community.general.homebrew:
+        name: "{{ packages }}"
+        state: present
+        update_homebrew: yes
+      when: ansible_os_family == "Darwin"
+      become: no
 
-    - name: Install native packages
-      package:
+    - name: Install native packages (Linux)
+      ansible.builtin.package:
         name: "{{ packages }}"
         state: present
         update_cache: yes
-      become: "{{ pkg_manager_become }}"
+      when: ansible_os_family != "Darwin"
+      become: yes
 
     - name: Change user shell to zsh
       ansible.builtin.user:
@@ -121,5 +130,5 @@
 
     - name: Initialize and Apply Dotfiles via Chezmoi
       command:
-        cmd: "chezmoi init --apply --update {{ dotfiles_repo }}"
+        cmd: "chezmoi init --apply {{ dotfiles_repo }}"
         creates: "~/.local/share/chezmoi"

@@ -1,4 +1,5 @@
 pkg_manager_become: no
+pkg_manager_update_param: "update_homebrew"
 packages:
   - ghostty
   - git
